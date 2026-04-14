@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ACA Valores — Market Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg0: #080c10;
+      --bg1: #0d1117;
+      --bg2: #161b22;
+      --bg3: #1c2128;
+      --border: #21262d;
+      --border2: #30363d;
+      --text0: #e6edf3;
+      --text1: #c9d1d9;
+      --text2: #8b949e;
+      --text3: #6e7681;
+      --blue: #58a6ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --amber: #e3b341;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    html { background: var(--bg0); color: var(--text0); font-family: var(--mono); font-size: 13px; }
+    body { min-height: 100vh; padding: 0; }
+
+    /* SCANLINE EFFECT */
+    body::before {
+      content: '';
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+      pointer-events: none; z-index: 9999;
+    }
+
+    .layout { display: grid; grid-template-columns: 200px 1fr; min-height: 100vh; }
+
+    /* SIDEBAR */
+    .sidebar {
+      background: var(--bg1);
+      border-right: 0.5px solid var(--border2);
+      padding: 24px 0;
+      position: sticky; top: 0; height: 100vh;
+      display: flex; flex-direction: column;
+    }
+    .brand { padding: 0 20px 24px; border-bottom: 0.5px solid var(--border); }
+    .brand-logo { font-family: var(--sans); font-size: 15px; font-weight: 500; color: var(--text0); letter-spacing: 0.02em; }
+    .brand-logo span { color: var(--blue); }
+    .brand-sub { font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 3px; }
+
+    .nav { padding: 16px 0; flex: 1; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 20px; font-size: 11px; color: var(--text2);
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      border-left: 2px solid transparent;
+    }
+    .nav-item:hover { background: var(--bg2); color: var(--text1); }
+    .nav-item.active { color: var(--blue); border-left-color: var(--blue); background: rgba(88,166,255,0.06); }
+    .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+    .sidebar-footer { padding: 16px 20px; border-top: 0.5px solid var(--border); }
+    .status-dot { display: inline-block; width: 7px; height: 7px; background: var(--green); border-radius: 50%; margin-right: 6px; animation: blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+    .status-txt { font-size: 10px; color: var(--text3); }
+    .update-time { font-size: 10px; color: var(--text3); margin-top: 4px; }
+
+    /* MAIN */
+    .main { padding: 24px 28px; overflow-x: hidden; }
+
+    .page-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; }
+    .page-title { font-family: var(--sans); font-size: 18px; font-weight: 300; color: var(--text0); letter-spacing: -0.01em; }
+    .page-date { font-size: 11px; color: var(--text3); }
+
+    /* KPI ROW */
+    .kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 24px; }
+    .kpi {
+      background: var(--bg2);
+      border: 0.5px solid var(--border2);
+      border-radius: 8px;
+      padding: 14px 16px;
+      position: relative; overflow: hidden;
+    }
+    .kpi::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1.5px;
+    }
+    .kpi.blue::before { background: var(--blue); }
+    .kpi.green::before { background: var(--green); }
+    .kpi.amber::before { background: var(--amber); }
+    .kpi.red::before { background: var(--red); }
+
+    .kpi-label { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; font-family: var(--sans); }
+    .kpi-value { font-size: 20px; font-weight: 500; color: var(--text0); font-family: var(--mono); line-height: 1; }
+    .kpi-chg { font-size: 11px; margin-top: 5px; font-family: var(--mono); }
+    .kpi-buy-sell { font-size: 10px; color: var(--text3); margin-top: 4px; }
+
+    .up { color: var(--green); }
+    .dn { color: var(--red); }
+    .nt { color: var(--text3); }
+
+    /* SECTION */
+    .section { margin-bottom: 24px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .section-title { font-size: 9px; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase; font-family: var(--sans); }
+
+    /* TABS */
+    .tabs { display: flex; gap: 4px; }
+    .tab {
+      font-size: 10px; padding: 4px 10px; border-radius: 5px;
+      border: 0.5px solid var(--border2); background: transparent;
+      color: var(--text3); cursor: pointer; font-family: var(--mono);
+      letter-spacing: 0.04em; transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text1); border-color: var(--text3); }
+    .tab.active { background: rgba(88,166,255,0.1); border-color: rgba(88,166,255,0.4); color: var(--blue); }
+
+    /* TABLE */
+    .tbl-wrap {
+      background: var(--bg2);
+      border: 0.5px solid var(--border2);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    thead tr { border-bottom: 0.5px solid var(--border2); }
+    th {
+      font-size: 9px; color: var(--text3); font-weight: 400;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 10px 14px; text-align: right; font-family: var(--sans);
+      background: var(--bg2);
+    }
+    th:first-child { text-align: left; }
+    td { padding: 8px 14px; border-bottom: 0.5px solid var(--border); text-align: right; color: var(--text1); font-family: var(--mono); }
+    td:first-child { text-align: left; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg3); }
+
+    .ticker { color: var(--blue); font-weight: 500; }
+    .badge {
+      display: inline-block; font-size: 8px; padding: 1px 5px;
+      border-radius: 3px; margin-left: 5px; font-family: var(--sans);
+      letter-spacing: 0.05em; vertical-align: middle;
+    }
+    .badge-ny { background: rgba(88,166,255,0.12); color: var(--blue); border: 0.5px solid rgba(88,166,255,0.3); }
+    .badge-arg { background: rgba(63,185,80,0.12); color: var(--green); border: 0.5px solid rgba(63,185,80,0.3); }
+    .badge-cer { background: rgba(227,179,65,0.12); color: var(--amber); border: 0.5px solid rgba(227,179,65,0.3); }
+
+    /* BOTTOM GRID */
+    .bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card {
+      background: var(--bg2);
+      border: 0.5px solid var(--border2);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .fx-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+    .fx-row:last-child { border-bottom: none; }
+    .fx-name { font-size: 11px; color: var(--text2); font-family: var(--sans); }
+    .fx-right { text-align: right; }
+    .fx-val { font-size: 13px; font-weight: 500; color: var(--text0); }
+    .fx-bid-ask { font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+    .stock-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+    .stock-row:last-child { border-bottom: none; }
+    .stock-sym { font-size: 11px; font-weight: 500; color: var(--text0); width: 48px; flex-shrink: 0; }
+    .bar-track { flex: 1; height: 3px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+    .bar-fill { height: 3px; border-radius: 2px; transition: width 0.4s ease; }
+    .stock-price { font-size: 11px; color: var(--text1); width: 60px; text-align: right; flex-shrink: 0; }
+    .stock-chg { font-size: 11px; width: 48px; text-align: right; flex-shrink: 0; }
+
+    .spinner {
+      display: inline-block; width: 8px; height: 8px;
+      border: 1.5px solid var(--border2); border-top-color: var(--blue);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      margin-right: 6px; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .err { font-size: 11px; color: var(--red); padding: 10px 0; font-family: var(--sans); }
+    .loading-cell { text-align: center !important; color: var(--text3) !important; font-style: italic; font-family: var(--sans); }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: relative; height: auto; flex-direction: row; padding: 12px 16px; flex-wrap: wrap; }
+      .brand { border-bottom: none; border-right: 0.5px solid var(--border); padding-right: 16px; margin-right: 8px; }
+      .nav { display: flex; padding: 0; gap: 4px; }
+      .nav-item { padding: 6px 10px; border-left: none; border-bottom: 2px solid transparent; }
+      .nav-item.active { border-bottom-color: var(--blue); border-left-color: transparent; }
+      .sidebar-footer { display: none; }
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .bottom { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo"><span>ACA</span> Valores</div>
+      <div class="brand-sub">Market Dashboard</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active"><span class="nav-dot"></span>Overview</div>
+      <div class="nav-item"><span class="nav-dot"></span>Bonos</div>
+      <div class="nav-item"><span class="nav-dot"></span>FX</div>
+      <div class="nav-item"><span class="nav-dot"></span>Acciones</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div><span class="status-dot"></span><span class="status-txt">Live · data912.com</span></div>
+      <div class="update-time" id="upd">—</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="page-header">
+      <div class="page-title">Resumen de mercado</div>
+      <div class="page-date" id="page-date">—</div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi blue">
+        <div class="kpi-label">Dólar MEP</div>
+        <div class="kpi-value" id="k-mep">—</div>
+        <div class="kpi-chg" id="k-mep-c">—</div>
+        <div class="kpi-buy-sell" id="k-mep-bs">—</div>
+      </div>
+      <div class="kpi green">
+        <div class="kpi-label">Dólar CCL</div>
+        <div class="kpi-value" id="k-ccl">—</div>
+        <div class="kpi-chg" id="k-ccl-c">—</div>
+        <div class="kpi-buy-sell" id="k-ccl-bs">—</div>
+      </div>
+      <div class="kpi amber">
+        <div class="kpi-label">Dólar Blue</div>
+        <div class="kpi-value" id="k-blue">—</div>
+        <div class="kpi-chg" id="k-blue-c">—</div>
+        <div class="kpi-buy-sell" id="k-blue-bs">—</div>
+      </div>
+      <div class="kpi red">
+        <div class="kpi-label">Oficial BNA</div>
+        <div class="kpi-value" id="k-ofic">—</div>
+        <div class="kpi-chg" id="k-ofic-c">—</div>
+        <div class="kpi-buy-sell" id="k-ofic-bs">—</div>
+      </div>
+    </div>
+
+    <!-- BONOS -->
+    <div class="section">
+      <div class="section-head">
+        <span class="section-title">Bonos soberanos</span>
+        <div class="tabs">
+          <button class="tab active" onclick="filterBonds('all',this)">Todos</button>
+          <button class="tab" onclick="filterBonds('GD',this)">Ley NY</button>
+          <button class="tab" onclick="filterBonds('AL',this)">Ley ARG</button>
+          <button class="tab" onclick="filterBonds('cer',this)">CER / Dual</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:28%">Instrumento</th>
+              <th style="width:13%">Precio</th>
+              <th style="width:13%">YTM</th>
+              <th style="width:12%">Δ 1D</th>
+              <th style="width:12%">Δ 1S</th>
+              <th style="width:12%">Volumen</th>
+              <th style="width:10%">Vto.</th>
+            </tr>
+          </thead>
+          <tbody id="bonds-body">
+            <tr><td colspan="7" class="loading-cell"><span class="spinner"></span>Cargando bonos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BOTTOM -->
+    <div class="bottom">
+      <div class="card">
+        <div class="section-title" style="margin-bottom:12px">Tipo de cambio</div>
+        <div id="fx-list"><div class="err"><span class="spinner"></span></div></div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-bottom:12px">Acciones líderes</div>
+        <div id="stocks-list"><div class="err"><span class="spinner"></span></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = 'https://data912.com';
+let allBonds = [];
+
+const fmt = (n, d=2) => n != null ? parseFloat(n).toFixed(d) : '—';
+const fmtARS = n => n != null ? '$' + Math.round(parseFloat(n)).toLocaleString('es-AR') : '—';
+const fmtPct = n => { if(n==null) return '—'; const v=parseFloat(n); return (v>0?'+':'')+v.toFixed(2)+'%'; };
+const cls = n => n==null?'nt':parseFloat(n)>0?'up':'dn';
+const fmtVol = n => { if(!n) return '—'; const v=parseFloat(n); if(v>=1e6) return (v/1e6).toFixed(1)+'M'; if(v>=1e3) return (v/1e3).toFixed(0)+'K'; return Math.round(v).toString(); };
+
+function setDate() {
+  const now = new Date();
+  document.getElementById('page-date').textContent = now.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('upd').textContent = 'Última actualización: ' + now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+}
+
+async function loadDolares() {
+  try {
+    const r = await fetch(API+'/dolares');
+    const d = await r.json();
+    const get = casa => d.find(x=>x.casa===casa);
+    const mep=get('bolsa'), ccl=get('contadoconliqui'), blue=get('blue'), ofic=get('oficial');
+
+    const setKpi = (id, val, chg, compra, venta) => {
+      document.getElementById('k-'+id).textContent = fmtARS(val);
+      document.getElementById('k-'+id+'-c').innerHTML = `<span class="${cls(chg)}">${fmtPct(chg)}</span>`;
+      document.getElementById('k-'+id+'-bs').textContent = compra&&venta ? `C: ${fmtARS(compra)} · V: ${fmtARS(venta)}` : '';
+    };
+    if(mep)  setKpi('mep',  mep.venta,  mep.variacion,  mep.compra,  mep.venta);
+    if(ccl)  setKpi('ccl',  ccl.venta,  ccl.variacion,  ccl.compra,  ccl.venta);
+    if(blue) setKpi('blue', blue.venta, blue.variacion, blue.compra, blue.venta);
+    if(ofic) setKpi('ofic', ofic.venta, ofic.variacion, ofic.compra, ofic.venta);
+
+    const fxNames = {oficial:'Oficial BNA',bolsa:'MEP (AL30)',contadoconliqui:'CCL',blue:'Blue informal',tarjeta:'Tarjeta / Qatar',cripto:'Cripto (USDT)',solidario:'Solidario',mayorista:'Mayorista'};
+    const show = ['oficial','bolsa','contadoconliqui','blue','tarjeta','cripto','mayorista'];
+    const rows = d.filter(x=>show.includes(x.casa));
+    document.getElementById('fx-list').innerHTML = rows.map(x=>`
+      <div class="fx-row">
+        <span class="fx-name">${fxNames[x.casa]||x.casa}</span>
+        <div class="fx-right">
+          <div class="fx-val">${fmtARS(x.venta)}</div>
+          <div class="fx-bid-ask">${x.compra?'C: '+fmtARS(x.compra)+' · V: '+fmtARS(x.venta):''} <span class="${cls(x.variacion)}">${fmtPct(x.variacion)}</span></div>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('fx-list').innerHTML = '<div class="err">Error cargando tipo de cambio</div>';
+  }
+}
+
+async function loadBonos() {
+  try {
+    const r = await fetch(API+'/bonos');
+    const d = await r.json();
+    allBonds = d.slice(0, 40);
+    renderBonds(allBonds);
+  } catch(e) {
+    document.getElementById('bonds-body').innerHTML = '<tr><td colspan="7" class="loading-cell" style="color:var(--red)">Error al cargar bonos. Verificar disponibilidad de API.</td></tr>';
+  }
+}
+
+function renderBonds(bonds) {
+  if(!bonds.length) { document.getElementById('bonds-body').innerHTML='<tr><td colspan="7" class="loading-cell">Sin resultados</td></tr>'; return; }
+  document.getElementById('bonds-body').innerHTML = bonds.map(b => {
+    const sym = b.simbolo||b.nombre||'—';
+    const isNY = sym.startsWith('GD');
+    const isArg = sym.startsWith('AL');
+    const isCer = sym.startsWith('TX')||sym.startsWith('TC')||sym.startsWith('CER');
+    const badge = isNY ? '<span class="badge badge-ny">NY</span>' : isArg ? '<span class="badge badge-arg">ARG</span>' : isCer ? '<span class="badge badge-cer">CER</span>' : '';
+    const delta = b.variacion ?? b.var_dia ?? null;
+    const deltaw = b.var_semana ?? null;
+    const ytm = b.tir ?? b.ytm ?? null;
+    return `<tr>
+      <td><span class="ticker">${sym}</span>${badge}</td>
+      <td>${fmt(b.ultimo||b.precio,1)}</td>
+      <td>${ytm!=null?fmt(ytm,1)+'%':'—'}</td>
+      <td class="${cls(delta)}">${fmtPct(delta)}</td>
+      <td class="${cls(deltaw)}">${fmtPct(deltaw)}</td>
+      <td style="color:var(--text3)">${fmtVol(b.volumen||b.monto)}</td>
+      <td style="color:var(--text3);font-size:11px">${b.vencimiento||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterBonds(type, el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  if(type==='all') { renderBonds(allBonds); return; }
+  if(type==='cer') { renderBonds(allBonds.filter(b=>{const s=b.simbolo||b.nombre||''; return s.startsWith('TX')||s.startsWith('TC')||s.includes('CER');})); return; }
+  renderBonds(allBonds.filter(b=>(b.simbolo||b.nombre||'').startsWith(type)));
+}
+
+async function loadAcciones() {
+  try {
+    const r = await fetch(API+'/acciones');
+    const d = await r.json();
+    const top = d.filter(x=>x.simbolo && !x.simbolo.includes('MERV')).slice(0,10);
+    const maxAbs = Math.max(...top.map(x=>Math.abs(parseFloat(x.variacion||0))),1);
+    document.getElementById('stocks-list').innerHTML = top.map(s => {
+      const v = parseFloat(s.variacion||0);
+      const pct = (Math.abs(v)/maxAbs*100).toFixed(0);
+      const color = v>=0 ? 'var(--green)' : 'var(--red)';
+      return `<div class="stock-row">
+        <span class="stock-sym">${s.simbolo||'—'}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <span class="stock-price">${fmtARS(s.ultimo)}</span>
+        <span class="stock-chg ${cls(v)}">${fmtPct(v)}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('stocks-list').innerHTML = '<div class="err">Error cargando acciones</div>';
+  }
+}
+
+async function refresh() {
+  setDate();
+  await Promise.all([loadDolares(), loadBonos(), loadAcciones()]);
+}
+
+refresh();
+setInterval(refresh, 60000);
+</script>
+</body>
+</html>
